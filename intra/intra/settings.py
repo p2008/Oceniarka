@@ -78,7 +78,7 @@ WSGI_APPLICATION = 'intra.wsgi.application'
 DATABASES = {
     'default': {
         'HOST': '127.0.0.1',
-        'NAME': 'oceniarka_db',
+        'NAME': 'intra_db',
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'USER': 'postgres',
         'PASSWORD': 'coderslab',
