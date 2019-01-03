@@ -1,0 +1,18 @@
+{% extends 'autentykacja/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+
+{% endblock title %}
+
+{% block content %}
+    {% if 'change_password' in request.path %}
+        Zmiana hasła
+    {% endif %}
+
+    <form action="#" method="post">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <p><input type="submit" value="Wyślij" /></p>
+    </form>
+{% endblock content %}
