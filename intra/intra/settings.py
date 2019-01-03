@@ -37,8 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'oceniarka',
     'crispy_forms',
+    'autentykacja',
+    'oceniarka',
 ]
 
 MIDDLEWARE = [
@@ -125,11 +126,12 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-TEMPLATE_DIRS = (os.path.join(BASE_DIR, 'oceniarka/templates'),)
+TEMPLATE_DIRS = (os.path.join(BASE_DIR, 'oceniarka/templates'),
+                 os.path.join(BASE_DIR, 'autentykacja/templates'),)
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
-LOGIN_REDIRECT_URL = 'home-page'
-LOGIN_URL = '/oceniarka/login'
+LOGIN_REDIRECT_URL = 'lista-kontroli'
+LOGIN_URL = '/login'
 
-LOGOUT_REDIRECT_URL = 'login'
+LOGOUT_REDIRECT_URL = '/login'
