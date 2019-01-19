@@ -1,9 +1,9 @@
 {% extends 'autentykacja/base.html' %}
 {% load crispy_forms_tags %}
 
-{% block title %}
-
-{% endblock title %}
+{% block navbar %}
+    {% include 'oceniarka/nav.html' %}
+{% endblock navbar %}
 
 {% block content %}
     {% if 'change_password' in request.path %}

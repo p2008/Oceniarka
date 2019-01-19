@@ -1,0 +1,31 @@
+<nav class="navbar navbar-expand-sm navbar-light bg-light">
+    <div class="navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'lista-kontroli' %}">
+                    Lista kontroli
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">
+                    Historia
+                </a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbardrop" data-toggle="dropdown">
+                Moje konto
+{#                    TODO: wstawić ikonę burgera/menu#}
+                </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="{% url 'change-password' %}">Zmień hasło</a>
+                </div>
+            </li>
+        </ul>
+        {% if user.username %}
+            <span class="nav-item">
+                <a class="nav-link" href="{% url 'logout' %}">
+                     Wyloguj {{ user.username }}</a>
+            </span>
+        {% endif %}
+    </div>
+</nav>

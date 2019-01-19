@@ -9,12 +9,13 @@
   <link rel="stylesheet" type="text/css" href="{% static 'oceniarka/style.css' %}">
 </head>
 <body>
-    <div class="container">
-        {% block navbar %}
-        {% endblock navbar %}
+    {% block navbar %}
+        {%  include 'oceniarka/nav.html' %}
+    {% endblock navbar %}
 
+    <div class="container">
         {% if messages %}
-            <ul class="alert alert-warning text-danger">
+            <ul class="alert alert-success text-info">
             {% for message in messages %}
                 <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
             {% endfor %}
@@ -29,6 +30,8 @@
         {% endblock content %}
     </div>
 
+    {% block kontrol_content %}
+    {% endblock kontrol_content %}
 <script
     src="https://code.jquery.com/jquery-3.3.1.js"
     integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="

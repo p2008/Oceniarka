@@ -40,32 +40,9 @@ class LoginUserView(View):
 
                 return redirect(START_PAGE)
 
+        # messages.error(request, 'Zły login lub hasło')
         form.add_error(None, 'Zły login lub hasło')
         return render(request, TEMPLATE, locals())
-
-
-class Password(View):
-
-    def get(self, request):
-        form = ChangePasswordForm
-        return render(request, TEMPLATE, locals())
-
-    def post(self, request):
-        form = ChangePasswordForm(request.POST)
-        if form.is_valid():
-            password1 = form.cleaned_data.get('password1')
-            password2 = form.cleaned_data.get('password2')
-
-            if password1 == password2:
-                user = get_object_or_404(User, id=request.user.pk)
-                user.set_password(password1)
-                user.save()
-                messages.success(request, 'Hasło zostało zmienione')
-            else:
-                form.add_error('password1', 'Hasła nie są takie same')
-                return redirect(reverse_lazy('change'))
-
-        return redirect(START_PAGE)
 
 
 class ChangePasswordView(LoginRequiredMixin, View):
@@ -77,6 +54,7 @@ class ChangePasswordView(LoginRequiredMixin, View):
 
     def post(self, request):
         form = ChangePasswordForm(request.POST)
+
         if form.is_valid():
             password1 = form.cleaned_data.get('password1')
             password2 = form.cleaned_data.get('password2')
@@ -85,10 +63,18 @@ class ChangePasswordView(LoginRequiredMixin, View):
                 user = get_object_or_404(User, id=request.user.pk)
                 user.set_password(password1)
                 user.save()
-                messages.success(request, 'Hasło zostało zmienione')
+
+                user = authenticate(username=user.username, password=password1)
+
+                if user:
+                    login(request, user)
+
+                    messages.success(request, 'Hasło zostało zmienione')
+                    return redirect(START_PAGE)
+
             else:
-                form.add_error('password1', 'Hasła nie są takie same')
-                return redirect(reverse_lazy('change'))
+                form.add_error(None, 'Hasła nie są takie same')
+                return render(request, TEMPLATE, locals())
 
         return redirect(START_PAGE)
 

@@ -5,5 +5,6 @@ from autentykacja.views import LoginUserView, LogoutUserView, \
 urlpatterns = [
     path('login/', LoginUserView.as_view(), name="login"),
     path('logout/', LogoutUserView.as_view(), name="logout"),
-    path('change_password/', ChangePasswordView.as_view(), name="change"),
+    path('change_password/', ChangePasswordView.as_view(),
+         name="change-password"),
 ]

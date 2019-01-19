@@ -1,0 +1,16 @@
+{% extends 'oceniarka/base.html' %}
+
+{% block title %} kontrola{% endblock %}
+
+{% block kontrol_content %}
+{{ form }}
+<object width="800px" height="700px" type="application/pdf" data="http://{{ file_server }}/Desktop/New/{{ control.rok }}/{{ nr_prac }}/{{ id_kont }}/{{ control.typ_dok }}.pdf?#search={{ search_topics }}&zoom=85&scrollbar=1&toolbar=0&navpanes=0&pagemode=thumbs">
+    <p>Brak zeskanowanej dokumentacji</p>
+</object>
+
+{#<object data="http://127.0.0.1:8080/Desktop/New/D19190416.pdf" type="application/pdf" width="750px" height="750px">#}
+{#    <embed src="http://127.0.0.1:8080/Desktop/New/D19190416.pdf" type="application/pdf">#}
+{#        <p>Brak zeskanowanej dokumentacji<a href="http://127.0.0.1:8080/Desktop/New/D19190416.pdf">Download PDF</a>.</p>#}
+{#    </embed>#}
+{#</object>#}
+{% endblock %}

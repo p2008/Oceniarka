@@ -1,7 +1,10 @@
 {% extends 'oceniarka/base.html' %}
 
-{%  block title %} Lista kontroli{% endblock %}
+{% block title %} Lista kontroli{% endblock %}
 
 {% block content %}
-    hello world
+    {% for control in controls %}
+{#        {{ control. }}#}
+        <p><a href="{% url 'podglad-kontroli' control.id %}">Kontrola 010{{ control.nr_prac }}-K{{ control.id_kont }}-{{ control.rok }}</a></p>
+    {% endfor %}
 {% endblock %}
