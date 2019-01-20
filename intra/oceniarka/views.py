@@ -3,15 +3,17 @@ from pprint import pprint
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.forms import model_to_dict
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views import View
-from datetime import date
+from datetime import date, datetime
 
 # Create your views here.
 from django.views.generic import FormView
 
 from oceniarka.forms import DocumentOtherDocs, DocumentZk
-from oceniarka.models import Control, Document, Coordinator, ControlTopic
+from oceniarka.models import Control, Document, Coordinator, ControlTopic, \
+    Topic
 
 
 def list_of_topics_function(user):
@@ -30,12 +32,12 @@ class ControlList(LoginRequiredMixin, View):
         start_year_of_check = date.today().year - 1
         list_of_topics = list_of_topics_function(request.user)
 
-        controls_in_history = Document.objects.\
+        controls_in_history = Document.objects. \
             filter(is_evaluated=False,
                    control_year__gt=start_year_of_check,
                    coordinator__inspector__username=request.user)
 
-        controls = Control.objects.using('kontrole').\
+        controls = Control.objects.using('kontrole'). \
             filter(rok__gt=start_year_of_check,
                    control_topics__temat__in=list_of_topics).distinct()
 
@@ -55,19 +57,19 @@ class ControlDocuments(View):
 
     def get(self, request, control_id):
 
-        #region pdf
+        # region pdf
         file_server = '127.0.0.1:8080'
         control = Control.objects.using('kontrole').get(pk=control_id)
-        nr_prac = '010' if control.nr_prac > 99 else '0100' + str(control.nr_prac)
+        nr_prac = '010' if control.nr_prac > 99 else '0100' + str(
+            control.nr_prac)
         id_kont = 'K' + str(control.id_kont).zfill(3)
         list_of_topics = list_of_topics_function(request.user)
         search_topics = ' '.join(list_of_topics)
-        #endregion
+        # endregion
 
-        instance = ControlTopic.objects.using('kontrole').filter(kontrola=control)
-
+        instance = ControlTopic.objects.using('kontrole').filter(
+            kontrola=control)
         form = DocumentZk(instance=instance)
-
         ctx = {'control': control,
                'file_server': file_server,
                'nr_prac': nr_prac,
@@ -78,12 +80,46 @@ class ControlDocuments(View):
         return render(request, 'oceniarka/control_document_template.html', ctx)
 
     def post(self, request, control_id):
-        form = DocumentZk(request.POST)
+        control = Control.objects.using('kontrole').get(pk=control_id)
+        instance = ControlTopic.objects.using('kontrole').filter(
+            kontrola=control)
 
+        form = DocumentZk(data=request.POST, instance=instance)
         if form.is_valid():
-            """przypisać do tabeli document"""
+            topic = form.cleaned_data.get('topic')
 
-        pass
+            all_new_topics = list()
+            for nt in range(len(topic) + 1, 8 + 1):  # 8 bo to max możliwych tematów
+                field_name = f'new_topic_{nt}'
+
+                if form.cleaned_data.get(field_name):
+                    new_topic = form.cleaned_data.get(field_name)
+                    pprint(new_topic)
+                    if new_topic.name in all_new_topics:
+                        form.add_error(field_name, 'Duplicate')
+                    else:
+                        all_new_topics.append(new_topic.name)
+
+            nr_prac = '010' if control.nr_prac > 99 else '0100' + str(
+                control.nr_prac)
+            id_kont = 'K' + str(control.id_kont).zfill(3)
+            string_of_topics = ','.join(topic + all_new_topics)
+
+            Document.objects.update_or_create(
+                control_id=control_id,
+                defaults={
+                    'coordinator': Coordinator.objects.get(
+                        inspector__username=request.user),
+                    'inspector': User.objects.get(username=nr_prac),
+                    'control_number': id_kont,
+                    'control_year': control.rok,
+                    'document_type': control.typ_dok,
+                    'field_current_value': string_of_topics,
+                    'is_evaluated': True,
+                    'evaluation_date': datetime.now()}
+            )
+
+        return redirect(reverse('lista-kontroli'))
 
 
 class Email():

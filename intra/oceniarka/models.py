@@ -48,6 +48,15 @@ class Topic(models.Model):
         return self.name
 
 
+class Email(models.Model):
+    email_from = models.EmailField()
+    email_to = models.EmailField()
+    email_message = models.TextField()
+
+
+# Outer database models
+
+
 class ControlTopic(models.Model):
     kontrola = models.ForeignKey('Control', on_delete=models.CASCADE,
                                 related_name='control_topics', db_column='kontrola')
