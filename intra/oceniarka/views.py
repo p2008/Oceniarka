@@ -7,16 +7,17 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
 from datetime import date, datetime
-
-# Create your views here.
-from django.views.generic import FormView
-
 from oceniarka.forms import DocumentOtherDocs, DocumentZk
 from oceniarka.models import Control, Document, Coordinator, ControlTopic, \
     Topic
 
+# Create your views here.
 
-def list_of_topics_function(user):
+
+ZK_MAX_TOPICS = 8  # max możliwych tematów w ZK
+
+
+def list_of_coordinated_topics_function(user):
     coordinator = Coordinator.objects.get(inspector__username=user)
     topics_to_eval = coordinator.topic.all()
     list_of_topics = [topic.name for topic in topics_to_eval]
@@ -30,19 +31,28 @@ class ControlList(LoginRequiredMixin, View):
 
     def get(self, request):
         start_year_of_check = date.today().year - 1
-        list_of_topics = list_of_topics_function(request.user)
+        list_of_coordinated_topics = \
+            list_of_coordinated_topics_function(request.user)
 
         controls_in_history = Document.objects. \
-            filter(is_evaluated=False,
+            filter(is_evaluated=True,
                    control_year__gt=start_year_of_check,
                    coordinator__inspector__username=request.user)
 
-        controls = Control.objects.using('kontrole'). \
-            filter(rok__gt=start_year_of_check,
-                   control_topics__temat__in=list_of_topics).distinct()
+        list_of_controls = list()
+        for c in controls_in_history:
+            list_of_controls.append(c.control_id)
 
         if len(controls_in_history) > 0:
-            controls.exclude(pk__in=controls_in_history.pk)
+            # pobierz kontrole według roku i koordynowanych przez usera tematów
+            controls = Control.objects.using('kontrole'). \
+                filter(rok__gt=start_year_of_check,
+                       control_topics__temat__in=list_of_coordinated_topics). \
+                exclude(pk__in=list_of_controls).distinct()
+        else:
+            controls = Control.objects.using('kontrole'). \
+                filter(rok__gt=start_year_of_check,
+                       control_topics__temat__in=list_of_coordinated_topics).distinct()
 
         ctx = {'controls': controls}
         return render(request, 'oceniarka/control_list_template.html', ctx)
@@ -63,7 +73,7 @@ class ControlDocuments(View):
         nr_prac = '010' if control.nr_prac > 99 else '0100' + str(
             control.nr_prac)
         id_kont = 'K' + str(control.id_kont).zfill(3)
-        list_of_topics = list_of_topics_function(request.user)
+        list_of_topics = list_of_coordinated_topics_function(request.user)
         search_topics = ' '.join(list_of_topics)
         # endregion
 
@@ -89,7 +99,7 @@ class ControlDocuments(View):
             topic = form.cleaned_data.get('topic')
 
             all_new_topics = list()
-            for nt in range(len(topic) + 1, 8 + 1):  # 8 bo to max możliwych tematów
+            for nt in range(len(topic) + 1, ZK_MAX_TOPICS + 1):
                 field_name = f'new_topic_{nt}'
 
                 if form.cleaned_data.get(field_name):
@@ -107,9 +117,9 @@ class ControlDocuments(View):
 
             Document.objects.update_or_create(
                 control_id=control_id,
+                coordinator=Coordinator.objects.get(
+                    inspector__username=request.user),
                 defaults={
-                    'coordinator': Coordinator.objects.get(
-                        inspector__username=request.user),
                     'inspector': User.objects.get(username=nr_prac),
                     'control_number': id_kont,
                     'control_year': control.rok,

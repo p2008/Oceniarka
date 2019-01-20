@@ -33,7 +33,11 @@ class LoginUserView(View):
             user = authenticate(username=username, password=password)
 
             if user:
+                last_login = User.objects.get(username=username).last_login
                 login(request, user)
+
+                if last_login is None:
+                    return redirect(reverse_lazy('change-password'))
 
                 if next_url:
                     return redirect(next_url)

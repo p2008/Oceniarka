@@ -1,4 +1,5 @@
 {% extends 'oceniarka/base.html' %}
+{% load static %}
 
 {% block title %} kontrola{% endblock %}
 
@@ -8,7 +9,7 @@
         {{ form }}
         <input type="submit" name="Dalej">
     </form>
-<object width="800px" height="700px" type="application/pdf" data="http://{{ file_server }}/Desktop/New/{{ control.rok }}/{{ nr_prac }}/{{ id_kont }}/{{ control.typ_dok }}.pdf?#search={{ search_topics }}&zoom=85&scrollbar=1&toolbar=0&navpanes=0&pagemode=thumbs">
+<object id="pdf" width="800px" height="700px" type="application/pdf" data="http://{{ file_server }}/Desktop/New/{{ control.rok }}/{{ nr_prac }}/{{ id_kont }}/{{ control.typ_dok }}.pdf?#search={{ search_topics }}&zoom=85&scrollbar=1&toolbar=0&navpanes=0&pagemode=thumbs">
     <p>Brak zeskanowanej dokumentacji</p>
 </object>
 

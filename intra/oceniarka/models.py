@@ -22,7 +22,7 @@ class Document(models.Model):
     evaluation_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f'Ip: {self.inspector} k: {self.document_type}'
+        return f'Ip: {self.inspector} k: {self.control_number}'
 
 
 class Coordinator(models.Model):
