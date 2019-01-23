@@ -51,6 +51,7 @@ class Topic(models.Model):
 class Email(models.Model):
     email_from = models.EmailField()
     email_to = models.EmailField()
+    control_number = models.CharField(max_length=4)
     email_message = models.TextField()
 
 

@@ -1,15 +1,16 @@
 from pprint import pprint
 
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
-from django.forms import model_to_dict
+from django.forms import model_to_dict, formset_factory
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
 from datetime import date, datetime
-from oceniarka.forms import DocumentOtherDocs, DocumentZk
+from oceniarka.forms import DocumentOtherDocs, DocumentZk, EmailForm
 from oceniarka.models import Control, Document, Coordinator, ControlTopic, \
-    Topic
+    Email
 
 # Create your views here.
 
@@ -45,20 +46,23 @@ class ControlList(LoginRequiredMixin, View):
 
         if len(controls_in_history) > 0:
             # pobierz kontrole według roku i koordynowanych przez usera tematów
+            # wyklucz już ocenione kontrole
             controls = Control.objects.using('kontrole'). \
                 filter(rok__gt=start_year_of_check,
                        control_topics__temat__in=list_of_coordinated_topics). \
-                exclude(pk__in=list_of_controls).distinct()
+                exclude(pk__in=list_of_controls). \
+                distinct()
         else:
             controls = Control.objects.using('kontrole'). \
                 filter(rok__gt=start_year_of_check,
-                       control_topics__temat__in=list_of_coordinated_topics).distinct()
+                       control_topics__temat__in=list_of_coordinated_topics). \
+                distinct()
 
         ctx = {'controls': controls}
         return render(request, 'oceniarka/control_list_template.html', ctx)
 
 
-class ControlDocuments(View):
+class ControlDocuments(LoginRequiredMixin, View):
     """Wypisane są dokumenty: karta statystyczna i wszystkie dokumenty,
     gdzie pojawił się temat.
     Odhaczenie checkboxa w KS odhacza checkboxy w dokumnetach
@@ -79,7 +83,9 @@ class ControlDocuments(View):
 
         instance = ControlTopic.objects.using('kontrole').filter(
             kontrola=control)
+
         form = DocumentZk(instance=instance)
+
         ctx = {'control': control,
                'file_server': file_server,
                'nr_prac': nr_prac,
@@ -95,11 +101,25 @@ class ControlDocuments(View):
             kontrola=control)
 
         form = DocumentZk(data=request.POST, instance=instance)
+
         if form.is_valid():
-            topic = form.cleaned_data.get('topic')
+            list_of_coordinated_topics = list_of_coordinated_topics_function(
+                request.user)
+            coordinated_topics_left_in_control = form.cleaned_data.get('topic')
+
+            initial_control_topics = []
+            for t in instance:
+                initial_control_topics.append(t.temat)
+
+            topics_not_coordinated = [
+                x for x in initial_control_topics
+                if x not in list_of_coordinated_topics
+            ]
 
             all_new_topics = list()
-            for nt in range(len(topic) + 1, ZK_MAX_TOPICS + 1):
+            new_topics_fields_position = \
+                range(len(initial_control_topics) + 1, ZK_MAX_TOPICS + 1)
+            for nt in new_topics_fields_position:
                 field_name = f'new_topic_{nt}'
 
                 if form.cleaned_data.get(field_name):
@@ -110,36 +130,108 @@ class ControlDocuments(View):
                     else:
                         all_new_topics.append(new_topic.name)
 
-            nr_prac = '010' if control.nr_prac > 99 else '0100' + str(
-                control.nr_prac)
-            id_kont = 'K' + str(control.id_kont).zfill(3)
-            string_of_topics = ','.join(topic + all_new_topics)
-
+            nr_prac = '010' if control.nr_prac > 99 else '0100'
+            nr_prac = nr_prac + str(control.nr_prac)
+            control_number = 'K' + str(control.id_kont).zfill(3)
+            string_of_topics_to_db = ','.join(
+                coordinated_topics_left_in_control +
+                all_new_topics +
+                topics_not_coordinated
+            )
+            inspector = User.objects.get(username=nr_prac)  # TODO transakcje
+            coordinator = Coordinator.objects.get(
+                inspector__username=request.user)
             Document.objects.update_or_create(
                 control_id=control_id,
-                coordinator=Coordinator.objects.get(
-                    inspector__username=request.user),
+                coordinator=coordinator,
                 defaults={
-                    'inspector': User.objects.get(username=nr_prac),
-                    'control_number': id_kont,
+                    'inspector': inspector,
+                    'control_number': control_number,
                     'control_year': control.rok,
                     'document_type': control.typ_dok,
-                    'field_current_value': string_of_topics,
+                    'field_current_value': string_of_topics_to_db,
                     'is_evaluated': True,
                     'evaluation_date': datetime.now()}
             )
 
+            # topics_left_in_control + topics_not_coordinated
+            topics_for_delete = list(
+                set(initial_control_topics) -
+                set(coordinated_topics_left_in_control) -
+                set(topics_not_coordinated)
+            )
+
+            if topics_for_delete is not None or all_new_topics is not None:
+                email_message = f'{nr_prac}-{control_number}: ' \
+                                f'Proszę o wykreślenie tematów:' \
+                                f' {topics_for_delete} i dodanie: ' \
+                                f'{all_new_topics} w karcie {control.typ_dok}'
+
+                Email.objects.update_or_create(
+                    email_to=inspector.email,
+                    email_from=coordinator.inspector.email,
+                    control_number=control_number,
+                    defaults={
+                        'email_message': email_message,
+                    }
+                )
+
         return redirect(reverse('lista-kontroli'))
 
 
-class Email():
+class EmailView(LoginRequiredMixin, View):
     """autogenerowany email w oparciu o formę z widoku control_documents.
     Pozwala przeczytać wygenerowany email. Kliknięcie przycisku wyślij i oceń
     przenosi do control_list i wysyłany jest email do inspektora i statystyka"""
+
+    def __init__(self, **kwargs):
+        super(EmailView, self).__init__(**kwargs)
+        self.EmailFormSet = formset_factory(EmailForm, extra=0)
+
+    def get(self, request):
+        coordinator = Coordinator.objects.get(
+            inspector__username=request.user)
+        coordinator_email = coordinator.inspector.email
+        coordinator_emails_from_db = \
+            Email.objects.filter(email_from=coordinator_email)
+
+        if coordinator_emails_from_db is None:
+            info_message = 'Brak e-mailów do wysłania'
+            messages.info(request, info_message)
+            return render(request, 'oceniarka/email.html')
+        else:
+            inspectors_emails = \
+                [x for x in coordinator_emails_from_db.distinct('email_to')]
+
+            initials = []
+            for inspector in inspectors_emails:
+                complete_emails_dict = {'email_from': coordinator_email}
+                inspector_email = inspector.email_to
+                single_inspector_emails = coordinator_emails_from_db.filter(
+                    email_to=inspector.email_to
+                )
+
+                email_message_to_inspector = ''
+                for single_email in single_inspector_emails:
+                    single_message = single_email.email_message
+                    email_message_to_inspector = email_message_to_inspector + \
+                                                 single_message + '\n'  # TODO co zamiast \n?
+
+                complete_emails_dict['email_to'] = inspector_email
+                complete_emails_dict[
+                    'email_message'] = email_message_to_inspector
+                initials.append(complete_emails_dict)
+
+            email_formset = self.EmailFormSet(initial=initials)
+
+            ctx = {'email_formset': email_formset}
+
+            return render(request, 'oceniarka/email.html', ctx)
+
     pass
 
 
-class History():
+class History(LoginRequiredMixin, View):
     """Wyszukiwarka już ocenionych kontroli.
     Szukanie po dacie oceny i dacie kontroli, nr kontroli, nr pracownika"""
     pass
