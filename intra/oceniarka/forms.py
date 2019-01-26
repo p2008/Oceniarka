@@ -9,10 +9,12 @@ ZK_MAX_TOPICS = 8
 
 class DocumentZk(forms.Form):
 
-    def __init__(self, instance, *args, **kwargs):
+    # def __init__(self, instance, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        self.topics = kwargs.pop('instance')
         super(DocumentZk, self).__init__(*args, **kwargs)
 
-        self.topics = instance
+        # self.topics = instance
         self.topic_choices = []
         for t in self.topics:
             choice = (f'{t.temat}', f'{t.temat}')

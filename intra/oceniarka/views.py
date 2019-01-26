@@ -44,20 +44,15 @@ class ControlList(LoginRequiredMixin, View):
         for c in controls_in_history:
             list_of_controls.append(c.control_id)
 
+        controls = Control.objects.using('kontrole'). \
+            filter(rok__gt=start_year_of_check,
+                   control_topics__temat__in=list_of_coordinated_topics)
         if len(controls_in_history) > 0:
             # pobierz kontrole według roku i koordynowanych przez usera tematów
             # wyklucz już ocenione kontrole
-            controls = Control.objects.using('kontrole'). \
-                filter(rok__gt=start_year_of_check,
-                       control_topics__temat__in=list_of_coordinated_topics). \
-                exclude(pk__in=list_of_controls). \
-                distinct()
-        else:
-            controls = Control.objects.using('kontrole'). \
-                filter(rok__gt=start_year_of_check,
-                       control_topics__temat__in=list_of_coordinated_topics). \
-                distinct()
+            controls = controls.exclude(pk__in=list_of_controls)
 
+        controls = controls.distinct()
         ctx = {'controls': controls}
         return render(request, 'oceniarka/control_list_template.html', ctx)
 
@@ -138,7 +133,7 @@ class ControlDocuments(LoginRequiredMixin, View):
                 all_new_topics +
                 topics_not_coordinated
             )
-            inspector = User.objects.get(username=nr_prac)  # TODO transakcje
+            inspector = User.objects.get(username=nr_prac)
             coordinator = Coordinator.objects.get(
                 inspector__username=request.user)
             Document.objects.update_or_create(
@@ -215,7 +210,7 @@ class EmailView(LoginRequiredMixin, View):
                 for single_email in single_inspector_emails:
                     single_message = single_email.email_message
                     email_message_to_inspector = email_message_to_inspector + \
-                                                 single_message + '\n'  # TODO co zamiast \n?
+                                                 single_message + '\n'
 
                 complete_emails_dict['email_to'] = inspector_email
                 complete_emails_dict[
@@ -224,11 +219,50 @@ class EmailView(LoginRequiredMixin, View):
 
             email_formset = self.EmailFormSet(initial=initials)
 
-            ctx = {'email_formset': email_formset}
+            self.ctx = {'email_formset': email_formset}
 
-            return render(request, 'oceniarka/email.html', ctx)
+            return render(request, 'oceniarka/email.html', self.ctx)
 
-    pass
+    def post(self, request):
+        email_formset = self.EmailFormSet(request.POST)
+
+        if email_formset.is_valid():
+            subject = 'Ocena kontroli'
+            all_emails_tuple = ()
+            email_from = email_formset[0].cleaned_data.get('email_from')
+            # email_from = secret.EMAIL_HOST_USER
+            email_statisticians = [User.objects.get(id=1).email]
+            all_messages = ''
+
+            for email_form in email_formset:
+                pprint(email_form)
+                email_message = email_form.cleaned_data.get('email_message')
+                # email_to = [email_form.cleaned_data.get('email_to')]
+                email_to = secret.email_to
+                all_messages += email_message + '\n'
+                all_emails_tuple += ((subject,
+                                      email_message,
+                                      email_from,
+                                      email_to),)
+
+            subject = 'do statystyka'  # tymczasowe
+            all_emails_tuple += ((subject,
+                                  all_messages,
+                                  email_from,
+                                  email_statisticians
+                                  ),)
+
+            send_mass_mail(datatuple=all_emails_tuple, fail_silently=False)
+
+            # emails_to_delete = request.user.coordinators. \
+            #     coordinator_emails_from_db()
+            messages.info(request, 'Emaile wysłane pomyślnie')
+            return redirect(reverse('lista-kontroli'))
+        else:
+            messages.info(request, 'Nastąpiły błędy, emaile nie wysłane')
+            email_formset.errors()
+            return render(request, 'oceniarka/email.html', self.ctx)
+
 
 
 class History(LoginRequiredMixin, View):
