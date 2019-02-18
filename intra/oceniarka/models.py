@@ -2,7 +2,16 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+def get_full_nr_prac(obj):
+    nr_prac = '010' if obj.nr_prac > 99 else '0100'
+    return nr_prac + str(obj.nr_prac)
+
+
+def get_full_control_number(obj):
+    return 'K' + str(obj.id_kont).zfill(3)
+
 # Create your models here.
+# from oceniarka.functions import get_full_nr_prac, get_full_control_number
 
 
 class Document(models.Model):
@@ -17,12 +26,19 @@ class Document(models.Model):
     # dwa poniższe pola mają określać czy checkbox dla dec/ws jest zaznaczony
     # ma to służyć do sprawdzenia przy porównaniu z bazą produkcyjną, czy wpis jest zgodny z oczekiwaniami koordynatora
     field_type = models.CharField(max_length=32)  # Przenieść do innej tabeli lub usunąć
-    field_current_value = models.CharField(max_length=32)  # Przenieść do innej tabeli lub traktować jako długi string z nazwami pól, np. dla dokumentu NK dec1T, dec2F
-    is_evaluated = models.BooleanField(default=False)
+    field_current_value = models.CharField(
+        max_length=32)  # Przenieść do innej tabeli lub traktować jako długi string z nazwami pól, np. dla dokumentu NK dec1T, dec2F
+    is_evaluated = models.BooleanField(default=False, null=False)
     evaluation_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f'Ip: {self.inspector} k: {self.control_number}'
+
+    def control_list_name(self):
+        return f'Kontrola { self.inspector }-{ self.control_number }'
+
+    def eval_date(self):
+        return f'{ self.evaluation_date.strftime("%m-%d-%Y %H:%M")}'
 
 
 class Coordinator(models.Model):
@@ -37,6 +53,9 @@ class Coordinator(models.Model):
 
     def username(self):
         return f'{self.inspector.username}'
+
+    def coordinator_emails_from_db(self):
+        return Email.objects.filter(email_from=self.inspector.email)
 
 
 class Topic(models.Model):
@@ -59,9 +78,10 @@ class Email(models.Model):
 
 
 class ControlTopic(models.Model):
+    # ControlTopic.kontrola == Control.id
     kontrola = models.ForeignKey('Control', on_delete=models.CASCADE,
-                                related_name='control_topics', db_column='kontrola')
-    temat = models.CharField(max_length=4)                      # ControlTopic.kontrola == Control.id
+                                 related_name='control_topics', db_column='kontrola')
+    temat = models.CharField(max_length=4)
 
     class Meta:
         db_table = 'kontrola_tematy'
@@ -79,3 +99,6 @@ class Control(models.Model):
     class Meta:
         db_table = 'kontrole'
         managed = False
+
+    def control_list_name(self):
+        return f'Kontrola { get_full_nr_prac(self) }-{ get_full_control_number(self) }-{ self.rok }'

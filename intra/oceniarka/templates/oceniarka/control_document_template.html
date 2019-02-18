@@ -1,21 +1,42 @@
 {% extends 'oceniarka/base.html' %}
 {% load static %}
-
+{% load pdf_path %}
+{% load crispy_forms_tags %}
 {% block title %} kontrola{% endblock %}
 
 {% block kontrol_content %}
-    <form id="post_form" method="post" action="#">
-        {% csrf_token %}
-        {{ form }}
-        <input id="submit" type="submit" name="Dalej">
-    </form>
-<object id="pdf" width="800px" height="700px" type="application/pdf" data="http://{{ file_server }}/Desktop/New/{{ control.rok }}/{{ nr_prac }}/{{ id_kont }}/{{ control.typ_dok }}.pdf?#search={{ search_topics }}&zoom=85&scrollbar=1&toolbar=0&navpanes=0&pagemode=thumbs">
-    <p>Brak zeskanowanej dokumentacji</p>
-</object>
+    <div class="row ">
+        <div class ="col-md-1"></div>
 
-{#<object data="http://127.0.0.1:8080/Desktop/New/D19190416.pdf" type="application/pdf" width="750px" height="750px">#}
-{#    <embed src="http://127.0.0.1:8080/Desktop/New/D19190416.pdf" type="application/pdf">#}
-{#        <p>Brak zeskanowanej dokumentacji<a href="http://127.0.0.1:8080/Desktop/New/D19190416.pdf">Download PDF</a>.</p>#}
-{#    </embed>#}
-{#</object>#}
+        <div class="document col-md-4 col-sm-4">
+            <form id="post_form" method="post" action="#">
+                {% csrf_token %}
+                 <fieldset class="alert border border-info rounded">
+                    <legend class="col-md-3 text-info">Karta Zk:</legend>
+                    {% for field in form.visible_fields %}
+                        {%  if field.name == "topic" %}
+                            <div class="text-secondary">{{ field|as_crispy_field }}</div>
+                            <div class="row">
+                        {% else %}
+                                {{ field|as_crispy_field }}
+                        {% endif %}
+                    {% endfor %}
+                            </div>
+                 </fieldset>
+                <div class="submit"><input class="btn btn-info" id="submit" type="submit" name="Dalej"></div>
+            </form>
+        </div>
+
+        <div id="pdf_div" class="col-md-6 col-sm-6">
+            <object id="pdf" type="application/pdf" data="{{ control|pdf_path:request.user }}">
+                <embed src="{{ control|pdf_path:request.user }}" type="application/pdf">
+                    <p class="text-secondary border border-info rounded">Brak zeskanowanej dokumentacji</p>
+                </embed>
+            </object>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script type="text/javascript" src="{% static 'oceniarka/script.js' %}"></script>
 {% endblock %}

@@ -6,13 +6,19 @@
 
 {% block kontrol_content %}
     <div class="container">
-    <form id="post_form" method="post" action="#">
-        {% csrf_token %}
-        {{ email_formset.management_form }}
-        {% for form in email_formset %}
-            {% crispy form %}
-        {% endfor %}
-        <input id="submit" type="submit" name="Dalej">
-    </form>
+    {% if email_formset.initial %}
+        <form id="post_form" method="post" action="#">
+            {% csrf_token %}
+            {{ email_formset.management_form }}
+            {% for form in email_formset %}
+                <div>
+                    <div class="text-secondary">{{ form.email_to|as_crispy_field}}</div>
+                    <div class="text-secondary">{{ form.email_from|as_crispy_field}}</div>
+                    <div class="text-secondary">{{ form.email_message|as_crispy_field}}</div>
+                </div>
+            {% endfor %}
+            <input id="submit" class="btn btn-info" type="submit" name="Dalej">
+        </form>
+    {% endif %}
     </div>
 {% endblock %}

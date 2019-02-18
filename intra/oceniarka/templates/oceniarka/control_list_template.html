@@ -1,10 +1,79 @@
 {% extends 'oceniarka/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
 
-{% block title %} Lista kontroli{% endblock %}
+{% block title %}
+    {% if 'historia' in request.path %}
+         Historia
+    {% else %}
+        Lista kontroli
+    {% endif %}
+{% endblock %}
 
 {% block content %}
-    {% for control in controls %}
-{#        {{ control. }}#}
-        <p><a href="{% url 'podglad-kontroli' control.id %}">Kontrola 010{{ control.nr_prac }}-K{{ control.id_kont }}-{{ control.rok }}</a></p>
-    {% endfor %}
+    <div id="paginate">
+        {% include 'oceniarka/paginate.html' %}
+    </div>
+
+    {% if 'historia' in request.path and controls %}
+        <div id="searchForm" class="form-inline alert alert-secondary">
+            <form id="search" method="post">
+                {% csrf_token %}
+                {{ searchform }}
+                <input class="btn btn-info" type="submit" name="submit" value="Szukaj">
+            </form>
+        </div>
+    {% endif %}
+
+    <div id="list">
+        <ul id="control_list" class="padding-zero">
+{#        <div class="alert alert-warning text-info"><p>Do oceny</p>#}
+            {% for control in controls %}
+                <li>
+                    {% if 'historia' in request.path %}
+                        <div class="alert alert-light border border-info rounded row"><span class="col-md-8">Kontrola:</span>
+                        <span class="col-md-2">Ocenione:</span></div>
+                        <a href="{% url 'podglad-kontroli' control.control_id %}"><div class="alert alert-info row"><span class="col-md-8">{{ control.control_list_name }}</span>
+                        <span class="col-md-2">{{ control.eval_date }}</span></div></a>
+                    {% else %}
+                        <a href="{% url 'podglad-kontroli' control.id %}"><div class="alert alert-info"><span>{{ control.control_list_name }}</span></div></a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+{#        </div>#}
+{#            <div class="alert alert-secondary  text-muted"><p>Ostatnich 10 ocenionych</p>#}
+{#            {% for control in evaluated_controls %}#}
+{#                <li>#}
+{#                    {% if 'historia' in request.path %}#}
+{#                    <a href="{% url 'podglad-kontroli' control.control_id %}"><div class="alert alert-light"><span>{{ control.control_list_name }}#}
+{#                        {{ control.eval_date }}</span></div></a>#}
+{#                    {% else %}#}
+{#                        <a href="{% url 'podglad-kontroli' control.id %}"><div class="alert alert-light"><span>{{ control.control_list_name }}</span></div></a>#}
+{#                    {% endif %}#}
+{#                </li>#}
+{#            {% endfor %}</div>#}
+        </ul>
+    </div>
+
+
+
+    {# {{ searchform.media.js }}#}
+    <script type="text/javascript" src="{% static '/admin/js/vendor/jquery/jquery.js' %}"></script>
+    <script type="text/javascript" src="{% static '/autocomplete_light/jquery.init.js' %}"></script>
+    <script type="text/javascript" src="{% static '/admin/js/vendor/select2/select2.full.js' %}"></script>
+    <script type="text/javascript" src="{% static '/admin/js/vendor/select2/i18n/pl.js' %}"></script>
+    <script type="text/javascript" src="{% static '/autocomplete_light/autocomplete.init.js' %}"></script>
+    <script type="text/javascript" src="{% static '/autocomplete_light/forward.js' %}"></script>
+    <script type="text/javascript" src="{% static '/autocomplete_light/select2.js' %}"></script>
+    <script type="text/javascript" src="{% static '/autocomplete_light/jquery.post-setup.js' %}"></script>
+    {{ searchform.media.css }}
+
+{#    <form id="searchform" method="post">#}
+{#        {% csrf_token %}#}
+{#        <input list="searchList" name="myBrowser" id="search2"/></label>#}
+{#        <datalist id="searchList">#}
+{#        </datalist>#}
+{#    </form>#}
+
 {% endblock %}
+

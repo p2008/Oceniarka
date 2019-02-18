@@ -8,8 +8,8 @@ class LoginForm(forms.Form):
 
 
 class ChangePasswordForm(forms.Form):
-    password1 = forms.CharField(widget=forms.PasswordInput, required=True)
-    password2 = forms.CharField(widget=forms.PasswordInput, required=True)
+    password1 = forms.CharField(label='Podaj hasło', widget=forms.PasswordInput, required=True)
+    password2 = forms.CharField(label='Powtórz hasło', widget=forms.PasswordInput, required=True)
 
 
 

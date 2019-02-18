@@ -9,9 +9,9 @@
   <link rel="stylesheet" type="text/css" href="{% static 'autentykacja/style.css' %}">
 </head>
 <body>
+    {% block navbar %}
+    {% endblock navbar %}
     <div class="container">
-        {% block navbar %}
-        {% endblock navbar %}
 
         {% if messages %}
             <ul class="alert alert-warning text-danger">

@@ -20,8 +20,11 @@ TEMPLATE = f'{APP_NAME}/autentykacja.html'
 class LoginUserView(View):
 
     def get(self, request):
-        form = LoginForm()
-        return render(request, TEMPLATE, locals())
+        if not request.user.is_authenticated:
+            form = LoginForm()
+            return render(request, TEMPLATE, locals())
+        else:
+            return redirect(START_PAGE)
 
     def post(self, request):
         form = LoginForm(request.POST)
@@ -33,7 +36,8 @@ class LoginUserView(View):
             user = authenticate(username=username, password=password)
 
             if user:
-                last_login = User.objects.get(username=username).last_login
+                authenticated_user = User.objects.get(username=username)
+                last_login = authenticated_user.last_login
                 login(request, user)
 
                 if last_login is None:
@@ -42,10 +46,13 @@ class LoginUserView(View):
                 if next_url:
                     return redirect(next_url)
 
+                groups_list = [str(y) for y in authenticated_user.groups.all()]
+                if 'koordynator' not in groups_list:
+                    return redirect(reverse_lazy('admin:index'))
+
                 return redirect(START_PAGE)
 
-        # messages.error(request, 'Zły login lub hasło')
-        form.add_error(None, 'Zły login lub hasło')
+        messages.error(request, 'Zły login lub hasło')
         return render(request, TEMPLATE, locals())
 
 

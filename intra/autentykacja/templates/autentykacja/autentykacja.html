@@ -7,12 +7,12 @@
 
 {% block content %}
     {% if 'change_password' in request.path %}
-        Zmiana hasła
+        <div class="alert alert-info">Zmiana hasła</div>
     {% endif %}
 
     <form action="#" method="post">
         {% csrf_token %}
         {{ form|crispy }}
-        <p><input type="submit" value="Wyślij" /></p>
+        <p><input class="btn btn-info" type="submit" value="Wyślij" /></p>
     </form>
 {% endblock content %}

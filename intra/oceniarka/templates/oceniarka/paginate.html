@@ -1,0 +1,21 @@
+{% if controls.has_other_pages %}
+
+    {% if controls.has_previous %}
+    <a class="btn btn-outline-info mb-4" href="?page=1"><<</a>
+    <a class="btn btn-outline-info mb-4" href="?page={{ controls.previous_page_number }}"><</a>
+    {% endif %}
+
+    {% for num in controls.paginator.page_range %}
+    {% if controls.number == num %}
+      <a class="btn btn-info mb-4" href="?page={{ num }}">{{ num }}</a>
+    {% elif num > controls.number|add:'-6' and num < controls.number|add:'6' %}
+      <a class="btn btn-outline-info mb-4" href="?page={{ num }}">{{ num }}</a>
+    {% endif %}
+    {% endfor %}
+
+    {% if controls.has_next %}
+    <a class="btn btn-outline-info mb-4" href="?page={{ controls.next_page_number }}">></a>
+    <a class="btn btn-outline-info mb-4" href="?page={{ controls.paginator.num_pages }}">>></a>
+    {% endif %}
+
+{% endif %}

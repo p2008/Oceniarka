@@ -1,23 +1,26 @@
 <nav class="navbar navbar-expand-sm navbar-light bg-light">
-    <div class="navbar-collapse" id="navbarSupportedContent">
-        <ul class="navbar-nav mr-auto">
+    <div class="container navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto nav-tabs">
             <li class="nav-item">
-                <a class="nav-link" href="{% url 'lista-kontroli' %}">
+{#                <div class="">#}
+                <a class="nav-link {% if 'lista_kontroli' in request.path %} active text-info {% endif %}" href="{% url 'lista-kontroli' %}">
+
                     Lista kontroli
                 </a>
+{#                </div>#}
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">
+                <a class="nav-link {% if 'historia' in request.path %} active text-info {% endif %}" href="{% url 'historia' %}">
                     Historia
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{% url 'email' %}">
+                <a class="nav-link {% if 'email' in request.path %} active text-info {% endif %}" href="{% url 'email' %}">
                     Email
                 </a>
             </li>
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" id="navbardrop" data-toggle="dropdown">
+                <a class="nav-link dropdown-toggle {% if 'change_password' in request.path %} active text-info {% endif %}" href="#" id="navbardrop" data-toggle="dropdown">
                 Moje konto
 {#                    TODO: wstawić ikonę burgera/menu#}
                 </a>
@@ -28,7 +31,7 @@
         </ul>
         {% if user.username %}
             <span class="nav-item">
-                <a class="nav-link" href="{% url 'logout' %}">
+                <a class="nav-link btn btn-info" href="{% url 'logout' %}">
                      Wyloguj {{ user.username }}</a>
             </span>
         {% endif %}

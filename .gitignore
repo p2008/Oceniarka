@@ -108,3 +108,4 @@ venv.bak/
 
 # Django
 /intra/static/*
+/intra/secret.py

@@ -1,3 +1,42 @@
 ul{
     list-style-type: none;
 }
+
+.submit{
+    margin-top: 2em;
+}
+
+#control_list{
+    margin: 0;
+}
+
+#searchForm{
+    margin-bottom: 2em;
+}
+
+.margin-zero{
+    margin-left: 0;
+}
+
+.padding-zero{
+    padding: 0;
+}
+
+/*fieldset {*/
+/*border: thick solid lightgray;*/
+/*}*/
+/*legend {*/
+/*color: lightgray;*/
+/*background: #000;*/
+/*font-size: 1.5em;*/
+/*padding: 5px;*/
+
+/*}*/
+#pdf{
+    width: 60em;
+    height: 120em;
+}
+
+.asteriskField {
+    display: none;
+}

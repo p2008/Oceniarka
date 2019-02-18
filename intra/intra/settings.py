@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+from intra import secret
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -31,6 +33,8 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'dal',
+    'dal_select2',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -143,3 +147,9 @@ LOGIN_REDIRECT_URL = 'lista-kontroli'
 LOGIN_URL = '/login'
 
 LOGOUT_REDIRECT_URL = '/login'
+
+EMAIL_HOST = secret.EMAIL_HOST
+EMAIL_HOST_USER = secret.EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD = secret.EMAIL_HOST_PASSWORD
+EMAIL_PORT = secret.EMAIL_PORT
+EMAIL_BACKEND = secret.EMAIL_BACKEND
