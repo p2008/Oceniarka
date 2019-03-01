@@ -1,25 +1,17 @@
 from django.contrib.auth.models import User
 from django.db import models
+from .outer_models import Control, ControlTopic, OrderTopic, Order,\
+    get_full_control_number, get_full_nr_prac, get_only_document_topics, documents_in_control
 
-
-def get_full_nr_prac(obj):
-    nr_prac = '010' if obj.nr_prac > 99 else '0100'
-    return nr_prac + str(obj.nr_prac)
-
-
-def get_full_control_number(obj):
-    return 'K' + str(obj.id_kont).zfill(3)
 
 # Create your models here.
-# from oceniarka.functions import get_full_nr_prac, get_full_control_number
-
 
 class Document(models.Model):
     coordinator = models.ForeignKey('Coordinator', on_delete=models.CASCADE,
                                     related_name='documents')
     inspector = models.ForeignKey(User, on_delete=models.CASCADE,
                                   related_name='documents')
-    control_id = models.BigIntegerField(null=False, default=-1)
+    control_id = models.DecimalField(max_digits=21, decimal_places=0, null=False, default=-1)
     control_number = models.CharField(max_length=4)
     control_year = models.PositiveSmallIntegerField()
     document_type = models.CharField(max_length=4)  # ZK, NK ...
@@ -72,33 +64,3 @@ class Email(models.Model):
     email_to = models.EmailField()
     control_number = models.CharField(max_length=4)
     email_message = models.TextField()
-
-
-# Outer database models
-
-
-class ControlTopic(models.Model):
-    # ControlTopic.kontrola == Control.id
-    kontrola = models.ForeignKey('Control', on_delete=models.CASCADE,
-                                 related_name='control_topics', db_column='kontrola')
-    temat = models.CharField(max_length=4)
-
-    class Meta:
-        db_table = 'kontrola_tematy'
-        managed = False
-
-
-class Control(models.Model):
-    typ_dok = models.CharField(max_length=2, null=False)
-    rok = models.PositiveSmallIntegerField(null=None)
-    nr_prac = models.PositiveSmallIntegerField(null=None)
-    id_kont = models.PositiveSmallIntegerField(null=None)
-    data_kont = models.DateField(null=False)
-    regon = models.CharField(max_length=14, null=False)
-
-    class Meta:
-        db_table = 'kontrole'
-        managed = False
-
-    def control_list_name(self):
-        return f'Kontrola { get_full_nr_prac(self) }-{ get_full_control_number(self) }-{ self.rok }'

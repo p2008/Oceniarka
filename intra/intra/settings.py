@@ -14,6 +14,7 @@ import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 from intra import secret
+# from intra.secret import DEFAULT, KONTROLE
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -81,21 +82,9 @@ WSGI_APPLICATION = 'intra.wsgi.application'
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'HOST': '127.0.0.1',
-        'NAME': 'intra_db',
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'USER': 'postgres',
-        'PASSWORD': 'coderslab',
-    },
+    'default': secret.DEFAULT,
 
-    'kontrole': {
-        'HOST': '127.0.0.1',
-        'NAME': 'intra_kontrole',
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'USER': 'postgres',
-        'PASSWORD': 'coderslab',
-    }
+    'kontrole': secret.KONTROLE,
 }
 
 

@@ -13,7 +13,7 @@
                 {% csrf_token %}
                  <fieldset class="alert border border-info rounded">
                     <legend class="col-md-3 text-info">Karta Zk:</legend>
-                    {% for field in form.visible_fields %}
+                    {% for field in zk_form.visible_fields %}
                         {%  if field.name == "topic" %}
                             <div class="text-secondary">{{ field|as_crispy_field }}</div>
                             <div class="row">
@@ -24,6 +24,9 @@
                             </div>
                  </fieldset>
                 <div class="submit"><input class="btn btn-info" id="submit" type="submit" name="Dalej"></div>
+            {% for dfn in document_forms.values %}
+                {{ dfn }}
+            {% endfor %}
             </form>
         </div>
 

@@ -11,21 +11,38 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
 
-import secret
 from oceniarka.functions import list_of_coordinated_topics_function, queryset_to_list
 from intra.secret import ZK_MAX_TOPICS
-from oceniarka.forms import DocumentZkForm, EmailForm, SearchForm
+from oceniarka.forms import DocumentZkForm, EmailForm, SearchForm, DocumentOtherForm
 from oceniarka.models import Control, Document, Coordinator, ControlTopic, Email, get_full_nr_prac, \
-    get_full_control_number
+    get_full_control_number, OrderTopic, Order, documents_in_control
+from oceniarka import outer_models
+
+# def other_documents_to_context(documents_in_control, control_id):
+#     for model in documents_in_control:
+#         document_group_in_control = model.objects.using('kontrole').filter(id_kontroli=control_id)
+#
+#     #orders_in_control = Order.objects.using('kontrole').filter(id_kontroli=control_id)
+#         document_forms = {}
+#         for indx, document in enumerate(document_group_in_control):
+#             # każdy wiersz to decyzja, która może mieć kilka tematów
+#             document_instance = OrderTopic.objects.using('kontrole').filter(
+#                 id_dok=document
+#             )
+#             document_form_name = f'form_{document.rodzaj_dok[:2]}{document.ident_dok}'
+#             document_forms[document_form_name] = DocumentOtherForm(instance=document_instance)
+#
+#     return ctx['document_forms'] = document_forms
 
 
 # Create your views here.
+from oceniarka.outer_models import get_only_document_topics
 
 
 class ControlList(LoginRequiredMixin, View):
     """lista kontroli z danego roku.
-    Na zielono te, które są do oceny ujęte w grupie Nowe.
-    Po naciśnięciu kontroli przenosi do widoku control_documents"""
+    Pobiera kontrole z historii i bazy po czym wypisuje te których nie ma w historii.
+    Przenosi do widoku control_documents"""
 
     def get(self, request):
         start_year_of_check = date.today().year - 1
@@ -42,7 +59,7 @@ class ControlList(LoginRequiredMixin, View):
         # pobierz kontrole według roku i koordynowanych przez usera tematów
         controls = Control.objects.using('kontrole'). \
             filter(rok__gt=start_year_of_check,
-                   control_topics__temat__in=list_of_coordinated_topics)
+                   control_topics__nr_tematu__in=list_of_coordinated_topics)
 
         if len(controls_in_history) > 0:
             # wyklucz już ocenione kontrole
@@ -51,7 +68,7 @@ class ControlList(LoginRequiredMixin, View):
         controls = controls.distinct()
         ctx = {'controls': controls,
                'evaluated_controls': controls_in_history[0:10]
-                }
+               }
 
         if not controls:
             messages.info(request, 'Nie masz kontroli do oceny')
@@ -60,15 +77,15 @@ class ControlList(LoginRequiredMixin, View):
 
 class ControlDocuments(LoginRequiredMixin, View):
     """Wypisane są dokumenty: karta statystyczna i wszystkie dokumenty,
-    gdzie pojawił się temat.
-    Odhaczenie checkboxa w KS odhacza checkboxy w dokumnetach
+    gdzie pojawił się nr_tematu.
+    Odhaczenie checkboxa w karcie stat. odhacza checkboxy w dokumnetach
     Po prawej stronie okna podgląd pdf ze ścieżki sieciowej
-    Kliknięcie przycisku Utwórz Email przenosi do widoku email."""
+    Kliknięcie przycisku Utwórz Email tworzy email i przenosi do widoku listy kontroli."""
 
     def dispatch(self, request, *args, **kwargs):
         control_topics = Control.objects.using('kontrole'). \
             get(pk=kwargs.get('control_id')).control_topics.all()
-        list_control_topics = queryset_to_list(control_topics, 'temat')
+        list_control_topics = queryset_to_list(control_topics, 'nr_tematu')
         list_of_coordinated_topics = \
             list_of_coordinated_topics_function(request.user)
 
@@ -84,25 +101,39 @@ class ControlDocuments(LoginRequiredMixin, View):
             return self.post(request, *args, **kwargs)
 
     def get(self, request, control_id):
-        # if 'historia' in self.request.META.get('HTTP_REFERER'):
-        #     history = Document.objects.get(control_id=control_id).field_current_value
-
         control = Control.objects.using('kontrole').get(pk=control_id)
+        # każdy wiersz to temat
         instance = ControlTopic.objects.using('kontrole').filter(
-            kontrola=control)
+            id_kontroli=control)
 
-        form = DocumentZkForm(instance=instance)
+        zk_form = DocumentZkForm(instance=instance)
 
         ctx = {'control': control,
-               'form': form
+               'zk_form': zk_form,
                }
 
+        # other_documents_to_context(ctx)
+
+        orders_in_control = Order.objects.using('kontrole').filter(id_kontroli=control_id).order_by('id_dok')
+        document_forms = {}
+        # Pętla wykonuje się dla każdego nakazu w kontroli
+        for indx, order in enumerate(orders_in_control):
+            # każdy wiersz to decyzja, która może mieć kilka tematów
+            document_instance = getattr(outer_models, 'Order' + 'Topic').objects.using('kontrole').filter(
+                id_dok=order
+            ).order_by('id_dec')
+            document_form_name = f'form_{order.rodzaj_dok[:2]}{order.ident_dok}'
+            document_forms[document_form_name] = DocumentOtherForm(instance=document_instance)
+
+        ctx['document_forms'] = document_forms
+
+        print(ctx)
         return render(request, 'oceniarka/control_document_template.html', ctx)
 
     def post(self, request, control_id):
         control = Control.objects.using('kontrole').get(pk=control_id)
         instance = ControlTopic.objects.using('kontrole').filter(
-            kontrola=control)
+            id_kontroli=control)
 
         form = DocumentZkForm(data=request.POST, instance=instance)
 
@@ -111,7 +142,7 @@ class ControlDocuments(LoginRequiredMixin, View):
                 request.user)
             coordinated_topics_left_in_control = form.cleaned_data.get('topic')
 
-            initial_control_topics = queryset_to_list(instance, 'temat')
+            initial_control_topics = queryset_to_list(instance, 'nr_tematu')
 
             topics_not_coordinated = [
                 x for x in initial_control_topics

@@ -17,6 +17,14 @@ START_PAGE = reverse_lazy(LOGIN_REDIRECT_URL)
 TEMPLATE = f'{APP_NAME}/autentykacja.html'
 
 
+def redirect_if_admin(username):
+    authenticated_user = User.objects.get(username=username)
+    groups_list = [str(y) for y in authenticated_user.groups.all()]
+    if 'koordynator' not in groups_list:
+        return redirect(reverse_lazy('admin:index'))
+    return redirect(START_PAGE)
+
+
 class LoginUserView(View):
 
     def get(self, request):
@@ -46,11 +54,7 @@ class LoginUserView(View):
                 if next_url:
                     return redirect(next_url)
 
-                groups_list = [str(y) for y in authenticated_user.groups.all()]
-                if 'koordynator' not in groups_list:
-                    return redirect(reverse_lazy('admin:index'))
-
-                return redirect(START_PAGE)
+                return redirect_if_admin(username)
 
         messages.error(request, 'Zły login lub hasło')
         return render(request, TEMPLATE, locals())
@@ -81,7 +85,7 @@ class ChangePasswordView(LoginRequiredMixin, View):
                     login(request, user)
 
                     messages.success(request, 'Hasło zostało zmienione')
-                    return redirect(START_PAGE)
+                    return redirect_if_admin(user.username)
 
             else:
                 form.add_error(None, 'Hasła nie są takie same')

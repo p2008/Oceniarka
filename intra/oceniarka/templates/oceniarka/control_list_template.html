@@ -36,7 +36,7 @@
                         <a href="{% url 'podglad-kontroli' control.control_id %}"><div class="alert alert-info row"><span class="col-md-8">{{ control.control_list_name }}</span>
                         <span class="col-md-2">{{ control.eval_date }}</span></div></a>
                     {% else %}
-                        <a href="{% url 'podglad-kontroli' control.id %}"><div class="alert alert-info"><span>{{ control.control_list_name }}</span></div></a>
+                        <a href="{% url 'podglad-kontroli' control.id_kontroli %}"><div class="alert alert-info"><span>{{ control.control_list_name }}</span></div></a>
                     {% endif %}
                 </li>
             {% endfor %}

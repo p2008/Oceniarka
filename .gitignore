@@ -109,3 +109,5 @@ venv.bak/
 # Django
 /intra/static/*
 /intra/secret.py
+/intra/outer_models.py
+/intra/oceniarka/migrations/
