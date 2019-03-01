@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('id_kont', models.BigIntegerField(null=None)),
-                ('temat', models.CharField(max_length=4)),
+                ('nr_tematu', models.CharField(max_length=4)),
             ],
             options={
                 'db_table': 'kontrola_tematy',
