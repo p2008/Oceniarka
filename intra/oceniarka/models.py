@@ -1,7 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
-from .outer_models import Control, ControlTopic, OrderTopic, Order,\
-    get_full_control_number, get_full_nr_prac, get_only_document_topics, documents_in_control
+from .outer_models import Control, ControlTopic, OrderTopic, Order
 
 
 # Create your models here.
@@ -64,3 +63,4 @@ class Email(models.Model):
     email_to = models.EmailField()
     control_number = models.CharField(max_length=4)
     email_message = models.TextField()
+    email_topic = models.CharField(max_length=32)

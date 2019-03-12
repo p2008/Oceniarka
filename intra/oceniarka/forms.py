@@ -1,12 +1,13 @@
 from crispy_forms.helper import FormHelper
 from dal import autocomplete
 from django import forms
-
-from oceniarka.models import Topic, get_only_document_topics
+from oceniarka.models import Topic
 from intra.secret import ZK_MAX_TOPICS, OTHER_MAX_TOPICS
+from oceniarka.outer_models import get_only_document_topics
 
 
 class DocumentZkForm(forms.Form):
+
     def __init__(self, *args, **kwargs):
         self.topics = kwargs.pop('instance')
         super(DocumentZkForm, self).__init__(*args, **kwargs)
@@ -39,15 +40,12 @@ class DocumentZkForm(forms.Form):
 
 
 class DocumentOtherForm(forms.Form):
-    """Pobiera listę decyzji.
-    Iteruje listę decyzji
-    każda decyzja to iteracja pętli
-    w każdej iteracji sprawdzić choices, utworzyć topic_dec1, utworzyć new_topic_dec1_n
-    """
+
     def __init__(self, *args, **kwargs):
         self.rows = kwargs.pop('instance')
         super(DocumentOtherForm, self).__init__(*args, **kwargs)
         self.topics_in_rows = get_only_document_topics(self.rows)
+
         for indx, row in enumerate(self.rows):
             self.topics = [val for val in self.topics_in_rows[indx].values() if val is not None]
 
@@ -56,26 +54,30 @@ class DocumentOtherForm(forms.Form):
                 choice = (f'{t}', f'{t}')
                 self.topic_choices.append(choice)
 
-            if 'nr_dec' in row.__dict__.keys():
-                addon = f'dec{row.nr_dec}'
+            addon = str(row) + f'{row.number}'
 
-            field_name = f'topic_{addon}'
-            self.fields[field_name] = forms.MultipleChoiceField(label=f'{addon}', choices=[], required=False,
-                                              widget=forms.CheckboxSelectMultiple())
-
-            self.fields[field_name].choices = self.topic_choices
             if len(self.topic_choices) > 0:
+                field_name = f'topic_{addon}'
+                self.fields[field_name] = forms.MultipleChoiceField(label=f'{addon}', choices=[], required=False,
+                                              widget=forms.CheckboxSelectMultiple())
+                self.fields[field_name].choices = self.topic_choices
+
                 tuple_of_topics = list(zip(*self.topic_choices))[0]
+                self.fields[field_name].initial = tuple_of_topics
             else:
                 tuple_of_topics = []
-            self.fields[field_name].initial = tuple_of_topics
+                # label = addon
 
             new_topic_number_of_fields = range(OTHER_MAX_TOPICS - len(self.topics))
 
             for nt in new_topic_number_of_fields:
+                label = ''
                 field_name = f'new_topic_{addon}_{nt + len(self.topics) + 1}'
+                if tuple_of_topics == [] and nt == 0:
+                    label = addon
+
                 self.fields[field_name] = forms.ModelChoiceField(
-                    label='',
+                    label=label,
                     required=False,
                     queryset=Topic.objects.filter(is_active=True).
                         exclude(name__in=tuple_of_topics),

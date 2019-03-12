@@ -11,32 +11,16 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
 
-from oceniarka.functions import list_of_coordinated_topics_function, queryset_to_list
-from intra.secret import ZK_MAX_TOPICS
+from oceniarka.functions import get_list_of_coordinated_topics, queryset_to_list, queryset_to_list_of_tuples, \
+    get_document_types_in_control, get_field_name_for_order_by, get_main_and_topic_model, \
+    get_document_instance_and_name, get_all_new_topics, get_topics_not_coordinated, get_topics_for_delete
+from intra.secret import ZK_MAX_TOPICS, OTHER_MAX_TOPICS
 from oceniarka.forms import DocumentZkForm, EmailForm, SearchForm, DocumentOtherForm
-from oceniarka.models import Control, Document, Coordinator, ControlTopic, Email, get_full_nr_prac, \
-    get_full_control_number, OrderTopic, Order, documents_in_control
+from oceniarka.models import Control, Document, Coordinator, ControlTopic, Email
 from oceniarka import outer_models
-
-# def other_documents_to_context(documents_in_control, control_id):
-#     for model in documents_in_control:
-#         document_group_in_control = model.objects.using('kontrole').filter(id_kontroli=control_id)
-#
-#     #orders_in_control = Order.objects.using('kontrole').filter(id_kontroli=control_id)
-#         document_forms = {}
-#         for indx, document in enumerate(document_group_in_control):
-#             # każdy wiersz to decyzja, która może mieć kilka tematów
-#             document_instance = OrderTopic.objects.using('kontrole').filter(
-#                 id_dok=document
-#             )
-#             document_form_name = f'form_{document.rodzaj_dok[:2]}{document.ident_dok}'
-#             document_forms[document_form_name] = DocumentOtherForm(instance=document_instance)
-#
-#     return ctx['document_forms'] = document_forms
 
 
 # Create your views here.
-from oceniarka.outer_models import get_only_document_topics
 
 
 class ControlList(LoginRequiredMixin, View):
@@ -47,7 +31,7 @@ class ControlList(LoginRequiredMixin, View):
     def get(self, request):
         start_year_of_check = date.today().year - 1
         list_of_coordinated_topics = \
-            list_of_coordinated_topics_function(request.user)
+            get_list_of_coordinated_topics(request.user)
 
         controls_in_history = Document.objects. \
             filter(is_evaluated=True,
@@ -87,7 +71,7 @@ class ControlDocuments(LoginRequiredMixin, View):
             get(pk=kwargs.get('control_id')).control_topics.all()
         list_control_topics = queryset_to_list(control_topics, 'nr_tematu')
         list_of_coordinated_topics = \
-            list_of_coordinated_topics_function(request.user)
+            get_list_of_coordinated_topics(request.user)
 
         if request.method == 'GET':
             if len(control_topics) > 0:
@@ -112,18 +96,16 @@ class ControlDocuments(LoginRequiredMixin, View):
                'zk_form': zk_form,
                }
 
-        # other_documents_to_context(ctx)
-
-        orders_in_control = Order.objects.using('kontrole').filter(id_kontroli=control_id).order_by('id_dok')
         document_forms = {}
-        # Pętla wykonuje się dla każdego nakazu w kontroli
-        for indx, order in enumerate(orders_in_control):
-            # każdy wiersz to decyzja, która może mieć kilka tematów
-            document_instance = getattr(outer_models, 'Order' + 'Topic').objects.using('kontrole').filter(
-                id_dok=order
-            ).order_by('id_dec')
-            document_form_name = f'form_{order.rodzaj_dok[:2]}{order.ident_dok}'
-            document_forms[document_form_name] = DocumentOtherForm(instance=document_instance)
+        for model in outer_models.DOCUMENTS_IN_CONTROL:  # DOCUMENTS_IN_CONTROL jest listą modeli
+            document_types_in_control = get_document_types_in_control(control_id, model)
+
+            # Pętla wykonuje się dla każdego nakazu w kontroli
+            for document in document_types_in_control:
+                # każdy wiersz to decyzja, która może mieć kilka tematów
+                document_instance, document_name = get_document_instance_and_name(model, document)
+
+                document_forms[document_name] = DocumentOtherForm(instance=document_instance, prefix=document_name)
 
         ctx['document_forms'] = document_forms
 
@@ -138,40 +120,31 @@ class ControlDocuments(LoginRequiredMixin, View):
         form = DocumentZkForm(data=request.POST, instance=instance)
 
         if form.is_valid():
-            list_of_coordinated_topics = list_of_coordinated_topics_function(
-                request.user)
             coordinated_topics_left_in_control = form.cleaned_data.get('topic')
-
             initial_control_topics = queryset_to_list(instance, 'nr_tematu')
+            topics_not_coordinated = get_topics_not_coordinated(initial_control_topics, request.user)
+            all_new_topics = get_all_new_topics(form, initial_control_topics, ZK_MAX_TOPICS)
+            nr_prac = outer_models.get_full_nr_prac(control)
+            control_number = outer_models.get_full_control_number(control)
+            inspector = User.objects.get(username=nr_prac)
+            coordinator = Coordinator.objects.get(inspector__username=request.user)
+            topics_for_delete = get_topics_for_delete(initial_control_topics,
+                                                      coordinated_topics_left_in_control,
+                                                      topics_not_coordinated)
 
-            topics_not_coordinated = [
-                x for x in initial_control_topics
-                if x not in list_of_coordinated_topics
-            ]
+            email_topic = f'Kontrola {nr_prac}-{control_number}:'
+            email_message = ''
+            if len(topics_for_delete) > 0 or len(all_new_topics) > 0:
+                email_message = f'Proszę o wykreślenie tematów:' \
+                                f' {topics_for_delete} i dodanie: {all_new_topics} w karcie {control.typ_dok}'
 
-            all_new_topics = list()
-            new_topics_fields_position = range(len(initial_control_topics) + 1, ZK_MAX_TOPICS + 1)
-            for nt in new_topics_fields_position:
-                field_name = f'new_topic_{nt}'
-
-                if form.cleaned_data.get(field_name):
-                    new_topic = form.cleaned_data.get(field_name)
-                    pprint(new_topic)
-                    if new_topic.name in all_new_topics:
-                        form.add_error(field_name, 'Duplicate')
-                    else:
-                        all_new_topics.append(new_topic.name)
-
-            nr_prac = get_full_nr_prac(control)
-            control_number = get_full_control_number(control)
+            # region Utworzenie listy i dodanie historii oceny
             string_of_topics_to_db = ','.join(
                 coordinated_topics_left_in_control +
                 all_new_topics +
                 topics_not_coordinated
             )
-            inspector = User.objects.get(username=nr_prac)
-            coordinator = Coordinator.objects.get(
-                inspector__username=request.user)
+
             Document.objects.update_or_create(
                 control_id=control_id,
                 coordinator=coordinator,
@@ -184,25 +157,66 @@ class ControlDocuments(LoginRequiredMixin, View):
                     'is_evaluated': True,
                     'evaluation_date': datetime.now()}
             )
+            # endregion
 
-            topics_for_delete = list(
-                set(initial_control_topics) -
-                set(coordinated_topics_left_in_control) -
-                set(topics_not_coordinated)
+        #Inne Dokumenty
+        for model in outer_models.DOCUMENTS_IN_CONTROL:  # DOCUMENTS_IN_CONTROL jest listą modeli
+            document_types_in_control = get_document_types_in_control(control_id, model)
+
+            # Pętla wykonuje się dla każdego nakazu w kontroli
+            for document in document_types_in_control:
+                # każdy wiersz to decyzja, która może mieć kilka tematów
+                document_instance, document_name = get_document_instance_and_name(model, document)
+                form_document = DocumentOtherForm(data=request.POST, instance=document_instance, prefix=document_name)
+                initial_row_topics_list_of_tuples = \
+                     queryset_to_list_of_tuples(document_instance, outer_models.topic_fields_in_document())
+
+                if form_document.is_valid():
+                    for indx, row in enumerate(document_instance):
+                        addon = str(row) + f'{row.number}'
+                        coordinated_topics_left_in_row = form_document.cleaned_data.get(f'topic_{addon}') or []
+                        initial_row_topics = initial_row_topics_list_of_tuples[indx]
+                        topics_not_coordinated = get_topics_not_coordinated(initial_row_topics, request.user)
+                        all_new_topics = get_all_new_topics(form_document, initial_row_topics, OTHER_MAX_TOPICS, addon)
+                        topics_for_delete = get_topics_for_delete(initial_row_topics,
+                                                                  coordinated_topics_left_in_row,
+                                                                  topics_not_coordinated)
+
+                        if len(topics_for_delete) > 0 or len(all_new_topics) > 0:
+                            email_message += f'\nProszę o wykreślenie tematów w karcie {document_name}/{addon}:' \
+                                            f' {topics_for_delete} i dodanie: {all_new_topics} '
+
+        if len(email_message) > 0:
+            Email.objects.update_or_create(
+                email_to=inspector.email,
+                email_from=coordinator.inspector.email,
+                control_number=control_number,
+                defaults={
+                    'email_message': email_message,
+                }
             )
 
-            if len(topics_for_delete) > 0 or len(all_new_topics) > 0:
-                email_message = f'{nr_prac}-{control_number}: Proszę o wykreślenie tematów:' \
-                                f' {topics_for_delete} i dodanie: {all_new_topics} w karcie {control.typ_dok}'
+            # region Utworzenie listy i dodanie historii oceny
+            string_of_topics_to_db = ','.join(
+                coordinated_topics_left_in_control +
+                all_new_topics +
+                topics_not_coordinated
+            )
 
-                Email.objects.update_or_create(
-                    email_to=inspector.email,
-                    email_from=coordinator.inspector.email,
-                    control_number=control_number,
-                    defaults={
-                        'email_message': email_message,
-                    }
-                )
+            Document.objects.update_or_create(
+                control_id=control_id,
+                coordinator=coordinator,
+                defaults={
+                    'inspector': inspector,
+                    'control_number': control_number,
+                    'control_year': control.rok,
+                    'document_type': control.typ_dok,
+                    'field_current_value': string_of_topics_to_db,
+                    'is_evaluated': True,
+                    'evaluation_date': datetime.now()}
+            )
+            # endregion
+
 
         return redirect(reverse('lista-kontroli'))
 
